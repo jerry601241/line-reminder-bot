@@ -14,20 +14,20 @@ const config = {
 
 const client = new line.Client(config);
 
-const reminders = []; // 儲存提醒項目
+// 儲存提醒項目（此版本只存在記憶體中，如需長期儲存可接資料庫）
+const reminders = [];
 
 app.post('/webhook', line.middleware(config), async (req, res) => {
-  Promise.all(req.body.events.map(handleEvent)).then(() => res.end());
+  console.log('Webhook events:', JSON.stringify(req.body, null, 2)); // 加入log方便排錯
+  Promise.all(req.body.events.map(handleEvent)).then(() => res.status(200).end());
 });
 
 async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return;
+
   const text = event.message.text.trim();
+  const parsedDate = chrono.parseDate(text); // 嘗試解析自然語言
 
-  // 嘗試解析自然語言或固定格式時間
-  const parsedDate = chrono.parseDate(text);
-
-  // 提醒開會 6月15日 14:00
   const match = text.match(/提醒開會\s*(.*)/);
   const remindText = match?.[1] || text;
   const date = parsedDate;
@@ -40,11 +40,23 @@ async function handleEvent(event) {
     return;
   }
 
-  // 安排提醒任務
+  // 判斷要推播到哪個來源（群組、聊天室或個人）
+  let targetId;
+  if (event.source.type === 'group') {
+    targetId = event.source.groupId;
+  } else if (event.source.type === 'room') {
+    targetId = event.source.roomId;
+  } else {
+    targetId = event.source.userId;
+  }
+
+  // 安排提醒
   schedule.scheduleJob(date, () => {
-    client.pushMessage(event.source.groupId || event.source.userId, {
+    client.pushMessage(targetId, {
       type: 'text',
       text: `🔔 開會提醒：${remindText}`,
+    }).catch(err => {
+      console.error('推播錯誤：', err);
     });
   });
 
