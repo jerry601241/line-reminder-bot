@@ -32,7 +32,7 @@ async function handleEvent(event) {
   if (event.type === 'join') {
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '👋 謝謝邀請我加入群組！請用「!」開頭輸入提醒指令，例如：\n!明天下午3點提醒我開會'
+      text: '👋 謝謝邀請我加入群組！請用「!」開頭輸入提醒指令，例如：\n!6/2 14:00提醒我吃漢堡'
     });
     return;
   }
@@ -48,34 +48,36 @@ async function handleEvent(event) {
   // 移除開頭的 !
   const commandText = text.slice(1).trim();
 
-  // 用 chrono 中文解析所有時間描述
-  const parsedResults = chrono.zh.parse(commandText, new Date(), { forwardDate: true });
+  // 用 chrono 中文解析所有時間描述（強制台灣時區）
+  const parsedResults = chrono.zh.parse(commandText, new Date(), { 
+    forwardDate: true,
+    timezones: { 'CST': 480 } // 台灣時區 UTC+8
+  });
 
   let parsedDate;
   let remindText = commandText;
 
   if (parsedResults.length > 0) {
-    // 取最後一個時間（通常是最終要提醒的時間）
+    // 取最後一個時間（通常是要設定的提醒時間）
     const lastTime = parsedResults[parsedResults.length - 1];
-    parsedDate = lastTime.start?.date();
+    parsedDate = lastTime.start.date();
 
-    // 只移除最後一個時間描述，保留其他內容
-    remindText = commandText.slice(0, lastTime.index) +
-                 commandText.slice(lastTime.index + lastTime.text.length);
-    // 移除「提醒我」等關鍵詞
+    // 移除所有時間描述（不只最後一個）
+    parsedResults.forEach(time => {
+      remindText = remindText.replace(time.text, '');
+    });
     remindText = remindText.replace(/提醒(我)?/g, '').trim();
-    if (!remindText) remindText = commandText;
   }
 
   if (!parsedDate) {
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '請輸入明確時間，例如：\n!6月2日13:00提醒我吃漢堡\n或：!明天下午12:00提醒我團隊會議\n建議用24小時制或明確寫出上午/下午。'
+      text: '請輸入明確時間格式，例如：\n!6/2 14:00提醒我吃漢堡'
     });
     return;
   }
 
-  // 台灣時區顯示
+  // 台灣時區顯示（強制日期正確）
   const options = {
     timeZone: 'Asia/Taipei',
     year: 'numeric',
@@ -83,7 +85,6 @@ async function handleEvent(event) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false
   };
   const formattedDate = parsedDate.toLocaleString('zh-TW', options);
@@ -93,13 +94,13 @@ async function handleEvent(event) {
     const targetId = event.source.groupId || event.source.userId;
     client.pushMessage(targetId, {
       type: 'text',
-      text: `🔔 開會提醒：${remindText}`,
+      text: `🔔 提醒：${remindText}`
     }).catch(console.error);
   });
 
   await client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `✅ 已設定提醒：${remindText}\n提醒時間：${formattedDate}\n（建議用24小時制或明確寫出上午/下午）`
+    text: `✅ 已設定提醒：${remindText}\n提醒時間：${formattedDate}`
   });
 }
 
