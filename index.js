@@ -59,10 +59,9 @@ async function handleEvent(event) {
     const lastTime = parsedResults[parsedResults.length - 1];
     parsedDate = lastTime.start?.date();
 
-    // 從原始文字移除所有時間描述
-    parsedResults.forEach(time => {
-      remindText = remindText.replace(time.text, '');
-    });
+    // 只移除最後一個時間描述，保留其他內容
+    remindText = commandText.slice(0, lastTime.index) +
+                 commandText.slice(lastTime.index + lastTime.text.length);
     // 移除「提醒我」等關鍵詞
     remindText = remindText.replace(/提醒(我)?/g, '').trim();
     if (!remindText) remindText = commandText;
@@ -71,7 +70,7 @@ async function handleEvent(event) {
   if (!parsedDate) {
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '請輸入明確時間，例如：\n!6月2日中午提醒我開會\n或：!明天12:00提醒我團隊會議'
+      text: '請輸入明確時間，例如：\n!6月2日13:00提醒我吃漢堡\n或：!明天下午12:00提醒我團隊會議\n建議用24小時制或明確寫出上午/下午。'
     });
     return;
   }
@@ -100,7 +99,7 @@ async function handleEvent(event) {
 
   await client.replyMessage(event.replyToken, {
     type: 'text',
-    text: `✅ 已設定提醒：${remindText}\n提醒時間：${formattedDate}`
+    text: `✅ 已設定提醒：${remindText}\n提醒時間：${formattedDate}\n（建議用24小時制或明確寫出上午/下午）`
   });
 }
 
