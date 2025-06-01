@@ -1,36 +1,39 @@
+require('dotenv').config();
 const express = require('express');
 const line = require('@line/bot-sdk');
 
 const config = {
-  channelAccessToken: 'YOUR_CHANNEL_ACCESS_TOKEN',
-  channelSecret: 'YOUR_CHANNEL_SECRET'
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET,
 };
 
+const client = new line.Client(config);
 const app = express();
 
-// 1. 先註冊 LINE middleware（這個順序很重要！）
-app.post('/webhook', line.middleware(config), (req, res) => {
-  Promise
-    .all(req.body.events.map(handleEvent))
-    .then((result) => res.json(result))
-    .catch((err) => {
-      console.error(err);
-      res.status(500).end();
-    });
+// 1. 僅在 /webhook 註冊 LINE middleware
+app.post('/webhook', line.middleware(config), async (req, res) => {
+  try {
+    await Promise.all(req.body.events.map(handleEvent));
+    res.status(200).end();
+  } catch (err) {
+    console.error('❌ Webhook error:', err);
+    res.status(500).end();
+  }
 });
 
-// 2. 其他 API 路徑再用 express.json()，不要影響 /webhook
-app.use(express.json());
-
-// 3. 事件處理函式（範例，可根據需求修改）
-function handleEvent(event) {
-  // 這裡可以根據 event 做你想要的處理
-  // 例如回覆訊息等
-  return Promise.resolve(null);
-}
-
-// 4. 啟動伺服器
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server is running on ${port}`);
+// 2. 限制 express.json() 作用範圍（非 /webhook）
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/webhook')) {
+    express.json()(req, res, next);
+  } else {
+    next();
+  }
 });
+
+// 3. 其他路由處理...
+app.get('/', (req, res) => res.send('✅ Bot is running'));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
+
+async function handleEvent(event) { ... }  // 你的原有邏輯
