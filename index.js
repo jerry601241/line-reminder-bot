@@ -8,14 +8,8 @@ const config = {
 
 const app = express();
 
-// 1. 先註冊 LINE middleware（這一步很重要！）
-app.use('/webhook', line.middleware(config));
-
-// 2. 再註冊 express.json() 或 body-parser（如果有需要處理其他 API）
-app.use(express.json());
-
-// 3. webhook handler
-app.post('/webhook', (req, res) => {
+// 1. 先註冊 LINE middleware（這個順序很重要！）
+app.post('/webhook', line.middleware(config), (req, res) => {
   Promise
     .all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -25,11 +19,17 @@ app.post('/webhook', (req, res) => {
     });
 });
 
+// 2. 其他 API 路徑再用 express.json()，不要影響 /webhook
+app.use(express.json());
+
+// 3. 事件處理函式（範例，可根據需求修改）
 function handleEvent(event) {
-  // 你的事件處理邏輯
+  // 這裡可以根據 event 做你想要的處理
+  // 例如回覆訊息等
   return Promise.resolve(null);
 }
 
+// 4. 啟動伺服器
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
   console.log(`Server is running on ${port}`);
