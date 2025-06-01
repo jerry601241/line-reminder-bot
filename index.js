@@ -35,11 +35,9 @@ async function handleEvent(event) {
   if (!text.startsWith('!')) return;
   const commandText = text.slice(1).trim();
 
-  // 修正正規表達式（貪婪匹配）
+  // 修正正規表達式（貪婪匹配 + 明確分隔符）
   const pattern = /(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})(.*?)(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/;
   const match = commandText.match(pattern);
-
-  console.log('Match result:', match); // 除錯用
 
   if (!match) {
     await client.replyMessage(event.replyToken, {
@@ -52,13 +50,14 @@ async function handleEvent(event) {
   const [_, date1, time1, remindText, date2, time2] = match;
   const remindDateTime = `${date2} ${time2}`;
 
-  // 強制台灣時區解析（UTC+8）
-  const parsedDate = chrono.zh.parseDate(remindDateTime, new Date(), {
-    timezones: { 'CST': 480 },
+  // 強制解析為 2025 年日期（避免跨年問題）
+  const referenceDate = new Date('2025-01-01T00:00:00+08:00'); // 台灣時區基準
+  const parsedDate = chrono.zh.parseDate(remindDateTime, referenceDate, {
+    timezones: { 'CST': 480 }, // 強制台灣時區 UTC+8
     forwardDate: true
   });
 
-  console.log('Parsed date:', parsedDate); // 除錯用
+  console.log('Parsed Date:', parsedDate); // 日誌檢查
 
   if (!parsedDate) {
     await client.replyMessage(event.replyToken, {
@@ -68,7 +67,7 @@ async function handleEvent(event) {
     return;
   }
 
-  // 台灣時區顯示
+  // 台灣時區顯示（強制 2025 年）
   const options = {
     timeZone: 'Asia/Taipei',
     year: 'numeric',
