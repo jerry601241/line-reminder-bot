@@ -13,17 +13,19 @@ const config = {
 
 const client = new line.Client(config);
 
-// ✅ 重要：使用 express.raw() 處理 Webhook
-app.post('/webhook', express.raw({ type: '*/*' }), line.middleware(config), async (req, res) => {
+// ✅ 使用 LINE SDK 的 middleware 前，不能先加其他 body-parser！
+app.post('/webhook', line.middleware(config), async (req, res) => {
   try {
-    const body = JSON.parse(req.body.toString()); // 將 raw buffer 轉成 JSON
-    await Promise.all(body.events.map(handleEvent));
+    await Promise.all(req.body.events.map(handleEvent));
     res.status(200).end();
   } catch (err) {
     console.error('❌ Webhook error:', err);
     res.status(500).end();
   }
 });
+
+// ✅ 其他 API 才加 JSON 處理
+app.use(express.json());
 
 async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return;
@@ -42,7 +44,6 @@ async function handleEvent(event) {
     return;
   }
 
-  // 設定提醒
   schedule.scheduleJob(date, () => {
     const targetId = event.source.groupId || event.source.userId;
     client.pushMessage(targetId, {
