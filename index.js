@@ -35,9 +35,11 @@ async function handleEvent(event) {
   if (!text.startsWith('!')) return;
   const commandText = text.slice(1).trim();
 
-  // 正規表達式匹配你的指定格式
-  const pattern = /(!?)(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})(.*?)(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/;
+  // 修正正規表達式（貪婪匹配）
+  const pattern = /(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})(.*?)(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/;
   const match = commandText.match(pattern);
+
+  console.log('Match result:', match); // 除錯用
 
   if (!match) {
     await client.replyMessage(event.replyToken, {
@@ -47,14 +49,16 @@ async function handleEvent(event) {
     return;
   }
 
-  // 提取時間和內容
-  const [_, prefix, date1, time1, remindText, date2, time2] = match;
+  const [_, date1, time1, remindText, date2, time2] = match;
   const remindDateTime = `${date2} ${time2}`;
 
-  // 用 chrono 解析最後一組時間（強制台灣時區）
+  // 強制台灣時區解析（UTC+8）
   const parsedDate = chrono.zh.parseDate(remindDateTime, new Date(), {
-    timezones: { 'CST': 480 } // 台灣時區 UTC+8
+    timezones: { 'CST': 480 },
+    forwardDate: true
   });
+
+  console.log('Parsed date:', parsedDate); // 除錯用
 
   if (!parsedDate) {
     await client.replyMessage(event.replyToken, {
@@ -76,7 +80,6 @@ async function handleEvent(event) {
   };
   const formattedDate = parsedDate.toLocaleString('zh-TW', options);
 
-  // 設定提醒
   schedule.scheduleJob(parsedDate, () => {
     const targetId = event.source.groupId || event.source.userId;
     client.pushMessage(targetId, {
