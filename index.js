@@ -28,7 +28,7 @@ app.use(express.json());
 
 // 3. 處理 LINE 事件
 async function handleEvent(event) {
-  // 處理機器人被邀請加入群組
+  // 機器人被邀請加入群組時
   if (event.type === 'join') {
     await client.replyMessage(event.replyToken, {
       type: 'text',
@@ -48,22 +48,30 @@ async function handleEvent(event) {
   // 移除開頭的 !
   const commandText = text.slice(1).trim();
 
-  // 用 chrono 中文解析時間
+  // 用 chrono 中文解析所有時間描述
   const parsedResults = chrono.zh.parse(commandText, new Date(), { forwardDate: true });
-  const parsedDate = parsedResults[0]?.start?.date();
 
-  // 提取提醒內容：移除時間描述
+  let parsedDate;
   let remindText = commandText;
+
   if (parsedResults.length > 0) {
-    const { index, text: timeText } = parsedResults[0];
-    remindText = (commandText.slice(0, index) + commandText.slice(index + timeText.length)).replace(/提醒(我)?/g, '').trim();
+    // 取最後一個時間（通常是最終要提醒的時間）
+    const lastTime = parsedResults[parsedResults.length - 1];
+    parsedDate = lastTime.start?.date();
+
+    // 從原始文字移除所有時間描述
+    parsedResults.forEach(time => {
+      remindText = remindText.replace(time.text, '');
+    });
+    // 移除「提醒我」等關鍵詞
+    remindText = remindText.replace(/提醒(我)?/g, '').trim();
     if (!remindText) remindText = commandText;
   }
 
   if (!parsedDate) {
     await client.replyMessage(event.replyToken, {
       type: 'text',
-      text: '請輸入正確的提醒格式，例如：\n!10分鐘後提醒我下午3點開會\n或：!明天中午12點提醒我團隊會議'
+      text: '請輸入明確時間，例如：\n!6月2日中午提醒我開會\n或：!明天12:00提醒我團隊會議'
     });
     return;
   }
