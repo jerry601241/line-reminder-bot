@@ -28,6 +28,16 @@ app.use(express.json());
 
 // 3. 處理 LINE 事件
 async function handleEvent(event) {
+  // 處理機器人被邀請加入群組
+  if (event.type === 'join') {
+    await client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '👋 謝謝邀請我加入群組！請用「!」開頭輸入提醒指令，例如：\n!明天下午3點提醒我開會'
+    });
+    return;
+  }
+
+  // 只處理文字訊息
   if (event.type !== 'message' || event.message.type !== 'text') return;
 
   const text = event.message.text.trim();
