@@ -96,6 +96,7 @@ app.get('/', (req, res) => {
   res.send('✅ LINE Reminder Bot is running.');
 });
 
+// 這裡是重點！用 process.env.PORT 啟動伺服器
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
